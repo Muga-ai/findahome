@@ -129,7 +129,7 @@ export default function HomePage() {
       <section className="py-24 px-6 bg-gray-50">
 
         <h2 className="text-3xl font-bold text-center text-primary mb-6">
-          The Find A Home Real Estate OS
+          Powered By Real Estate OS
         </h2>
 
         <p className="text-center text-gray-600 max-w-2xl mx-auto mb-16">
@@ -157,7 +157,7 @@ export default function HomePage() {
 
           <EcosystemCard
             title="Housify"
-            text="Property discovery & listings platform."
+            text="Smart Property Management for Modern Cities."
             link="https://housify-chi.vercel.app"
           />
 
