@@ -146,7 +146,7 @@ export default function HomePage() {
           <EcosystemCard
             title="Property Valuation"
             text="Instant AI-powered property pricing."
-            link="https://valora.vercel.app"
+            link="https://valora-mauve.vercel.app/"
           />
 
           <EcosystemCard
