@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
 
   images: {
+    // Allow remote patterns
     remotePatterns: [
       {
         protocol: "https",
@@ -16,6 +17,9 @@ const nextConfig: NextConfig = {
         pathname: "/**",
       },
     ],
+
+  
+    qualities: [75, 85, 90],
   },
 
   experimental: {
