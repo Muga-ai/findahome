@@ -23,4 +23,3 @@ export const event = ({ action, category, label, value }: GTagEvent) => {
     });
   }
 };
-

@@ -101,9 +101,10 @@ export default function HomePage() {
               Login
             </Link>
 
+            {/* Hide List Property on mobile */}
             <Link
               href="/register"
-              className="px-4 py-2 rounded-lg bg-primary text-white hover:opacity-90"
+              className="hidden md:inline-block px-4 py-2 rounded-lg bg-primary text-white hover:opacity-90"
             >
               List Property
             </Link>
@@ -147,17 +148,37 @@ export default function HomePage() {
         {/* Hero Content */}
         <div className="relative z-20 h-full flex flex-col justify-center items-center text-center text-white px-6 max-w-5xl mx-auto">
 
-          <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
-            Find Your Perfect Home.
-            <br />
-            Anywhere in Kenya.
-          </h1>
+          {/* Desktop-only hero texts */}
+          <div className="hidden md:block">
+            <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
+              Find Your Perfect Home.
+              <br />
+              Anywhere in Kenya.
+            </h1>
 
-          <p className="mt-4 text-lg text-gray-200 max-w-2xl">
-            Verified homes, trusted agents, and real market intelligence — in one ecosystem.
-          </p>
+            <p className="mt-4 text-lg text-gray-200 max-w-2xl">
+              Verified homes, trusted agents, and real market intelligence — in one ecosystem.
+            </p>
 
-          {/* Search Bar */}
+            {/* Desktop CTA buttons */}
+            <div className="mt-7 flex gap-4 flex-wrap justify-center">
+              <Link
+                href="/listings"
+                className="px-6 py-3 rounded-xl bg-primary font-semibold hover:opacity-90"
+              >
+                Find A Home
+              </Link>
+
+              <Link
+                href="/register"
+                className="px-6 py-3 rounded-xl border border-white font-semibold hover:bg-white hover:text-gray-900"
+              >
+                List A Home
+              </Link>
+            </div>
+          </div>
+
+          {/* Search Bar - always visible */}
           <form
             action="/listings"
             method="GET"
@@ -181,25 +202,6 @@ export default function HomePage() {
               Search
             </button>
           </form>
-
-          {/* CTA */}
-          <div className="mt-7 flex gap-4 flex-wrap justify-center">
-
-            <Link
-              href="/listings"
-              className="px-6 py-3 rounded-xl bg-primary font-semibold hover:opacity-90"
-            >
-              Find A Home
-            </Link>
-
-            <Link
-              href="/register"
-              className="px-6 py-3 rounded-xl border border-white font-semibold hover:bg-white hover:text-gray-900"
-            >
-              List A Home
-            </Link>
-
-          </div>
 
         </div>
 

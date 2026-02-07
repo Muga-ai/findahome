@@ -1,4 +1,4 @@
-// global.d.ts (in your project root)
+// global.d.ts
 interface Window {
   gtag: (...args: any[]) => void;
 }

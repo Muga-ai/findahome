@@ -62,6 +62,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // MOBILE TOGGLE
 
   /* -----------------------------
      AUTH LISTENER
@@ -145,9 +146,24 @@ export default function DashboardPage() {
      UI
   ================================ */
   return (
-    <main className="min-h-screen flex bg-light text-dark">
+    <main className="min-h-screen flex bg-light text-dark relative">
+      {/* ================= MOBILE OVERLAY ================= */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* ================= SIDEBAR ================= */}
-      <aside className="w-64 bg-primary text-black p-6 flex flex-col">
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-50 bg-primary p-6 flex flex-col w-64
+          transform transition-transform duration-300 ease-in-out
+          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          md:translate-x-0 md:static md:flex
+        `}
+      >
         <h2 className="text-xl font-bold mb-8">Find A Home</h2>
 
         <nav className="space-y-3 text-sm flex-1">
@@ -171,9 +187,20 @@ export default function DashboardPage() {
       </aside>
 
       {/* ================= MAIN ================= */}
-      <section className="flex-1 p-8 overflow-y-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+      <section className="flex-1 p-8 overflow-y-auto md:ml-64">
+        {/* MOBILE HAMBURGER */}
+        <div className="md:hidden flex justify-between items-center mb-4">
+          <button
+            className="p-2 bg-primary text-black rounded-lg"
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            Menu
+          </button>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+        </div>
+
+        {/* HEADER */}
+        <div className="hidden md:flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-black">Dashboard</h1>
           <button
             onClick={() => router.push("/dashboard/listings/add")}
@@ -184,14 +211,14 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* Stats */}
+        {/* STATS */}
         <div className="grid md:grid-cols-3 gap-6 mb-10">
           <StatCard title="Listings" value={listings.length} />
           <StatCard title="Views" value={0} />
           <StatCard title="Leads" value={0} />
         </div>
 
-        {/* Recent Listings */}
+        {/* RECENT LISTINGS */}
         <div className="mb-10">
           <h2 className="text-xl font-semibold mb-4 text-primary">
             Your Recent Listings
@@ -210,7 +237,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Tools */}
+        {/* TOOLS */}
         <div className="bg-white rounded-xl shadow p-6 mb-10">
           <h2 className="font-semibold text-lg mb-6 text-primary">
             Your Property Tools
@@ -224,7 +251,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Links */}
+        {/* QUICK LINKS */}
         <div className="bg-white rounded-xl shadow p-6">
           <h2 className="font-semibold text-lg mb-6 text-primary">
             Quick Links
@@ -317,10 +344,6 @@ function ToolCard({
   );
 }
 
-/* ================================
-   LISTING CARD
-================================ */
-
 function ListingCard({
   listing,
   onDelete,
@@ -343,14 +366,12 @@ function ListingCard({
         />
       </div>
 
-      {/* Info */}
       <h3 className="font-semibold text-lg">{listing.title}</h3>
       <p className="text-gray-600">{listing.location}</p>
       <p className="text-primary font-bold mb-2">
         Ksh {listing.price.toLocaleString()}
       </p>
 
-      {/* Features */}
       <div className="flex items-center gap-4 mb-2 text-gray-500">
         {listing.beds && (
           <span className="flex items-center gap-1">
@@ -369,7 +390,6 @@ function ListingCard({
         )}
       </div>
 
-      {/* Virtual Tour */}
       {listing.virtualTour && (
         <a
           href={listing.virtualTour}
@@ -381,7 +401,6 @@ function ListingCard({
         </a>
       )}
 
-      {/* Actions */}
       <div className="mt-auto flex gap-2">
         <Link
           href={`/dashboard/listings/edit/${listing.id}`}
