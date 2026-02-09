@@ -18,8 +18,8 @@ interface Listing {
   price: number;
   location: string;
   images: string[];
-  bedrooms?: number;
-  bathrooms?: number;
+  beds?: number;
+  baths?: number;
   parking?: number;
 }
 
@@ -187,12 +187,12 @@ function ListingCard({ listing }: { listing: Listing }) {
 
             <span className="flex items-center gap-1">
               <BedDouble size={16} />
-              {listing.bedrooms ?? "-"}
+              {listing.beds ?? "-"}
             </span>
 
             <span className="flex items-center gap-1">
               <ShowerHead size={16} />
-              {listing.bathrooms ?? "-"}
+              {listing.baths ?? "-"}
             </span>
 
             <span className="flex items-center gap-1">

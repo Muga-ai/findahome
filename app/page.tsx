@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import Link from "next/link";
 import Image from "next/image";
 
@@ -24,6 +26,16 @@ import "swiper/css";
 import "swiper/css/effect-fade";
 import "swiper/css/navigation";
 
+import {
+  collection,
+  getDocs,
+  limit,
+  query,
+  where,
+} from "firebase/firestore";
+
+import { db } from "@/lib/firebase";
+
 /* ================= HERO IMAGES ================= */
 
 const heroImages: string[] = Array.from(
@@ -31,55 +43,42 @@ const heroImages: string[] = Array.from(
   (_, i) => `/hero/hero${i + 1}.jpg`
 );
 
-/* ================= SAMPLE FEATURED LISTINGS ================= */
-/* Later: Replace with DB fetch */
-
-const featuredListings = [
-  {
-    id: 1,
-    title: "Modern Apartment - Kilimani",
-    location: "Nairobi",
-    price: "KSh 8.5M",
-    image: "/hero/hero5.jpg",
-    beds: 3,
-    baths: 2,
-    size: "120 sqm",
-  },
-  {
-    id: 2,
-    title: "Luxury Villa - Runda",
-    location: "Nairobi",
-    price: "KSh 48M",
-    image: "/hero/hero12.jpg",
-    beds: 5,
-    baths: 4,
-    size: "420 sqm",
-  },
-  {
-    id: 3,
-    title: "Studio Apartment - Westlands",
-    location: "Nairobi",
-    price: "KSh 4.2M",
-    image: "/hero/hero18.jpg",
-    beds: 1,
-    baths: 1,
-    size: "45 sqm",
-  },
-  {
-    id: 4,
-    title: "Townhouse - Syokimau",
-    location: "Machakos",
-    price: "KSh 12.7M",
-    image: "/hero/hero25.jpg",
-    beds: 4,
-    baths: 3,
-    size: "210 sqm",
-  },
-];
-
 /* ================= PAGE ================= */
 
 export default function HomePage() {
+  const [featuredListings, setFeaturedListings] = useState<any[]>([]);
+  const [loadingFeatured, setLoadingFeatured] = useState(true);
+
+  /* ================= FETCH FEATURED ================= */
+
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        const q = query(
+          collection(db, "listings"),
+          where("isFeatured", "==", true),
+          where("status", "==", "active"),
+          limit(10)
+        );
+
+        const snapshot = await getDocs(q);
+
+        const listings = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+
+        setFeaturedListings(listings);
+      } catch (error) {
+        console.error("Error loading featured listings:", error);
+      } finally {
+        setLoadingFeatured(false);
+      }
+    };
+
+    fetchFeatured();
+  }, []);
+
   return (
     <main className="min-h-screen bg-white text-gray-900">
 
@@ -101,7 +100,6 @@ export default function HomePage() {
               Login
             </Link>
 
-            {/* Hide List Property on mobile */}
             <Link
               href="/register"
               className="hidden md:inline-block px-4 py-2 rounded-lg bg-primary text-white hover:opacity-90"
@@ -116,7 +114,6 @@ export default function HomePage() {
       {/* ================= HERO ================= */}
       <section className="relative h-[85vh] w-full overflow-hidden">
 
-        {/* Background Slider - Ensure it stays in background */}
         <div className="absolute inset-0 z-0">
           <Swiper
             modules={[EffectFade, Autoplay]}
@@ -142,13 +139,10 @@ export default function HomePage() {
           </Swiper>
         </div>
 
-        {/* Overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/80 z-10 pointer-events-none" />
 
-        {/* Hero Content */}
         <div className="relative z-20 h-full flex flex-col justify-center items-center text-center text-white px-6 max-w-5xl mx-auto">
 
-          {/* Desktop-only hero texts */}
           <div className="hidden md:block">
             <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
               Find Your Perfect Home.
@@ -160,7 +154,6 @@ export default function HomePage() {
               Verified homes, trusted agents, and real market intelligence — in one ecosystem.
             </p>
 
-            {/* Desktop CTA buttons */}
             <div className="mt-7 flex gap-4 flex-wrap justify-center">
               <Link
                 href="/listings"
@@ -178,7 +171,6 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Search Bar - always visible */}
           <form
             action="/listings"
             method="GET"
@@ -216,25 +208,41 @@ export default function HomePage() {
             Featured Listings
           </h2>
 
-          <Swiper
-            modules={[Navigation, Autoplay]}
-            slidesPerView={1}
-            spaceBetween={20}
-            navigation
-            autoplay={{ delay: 6000 }}
-            breakpoints={{
-              768: { slidesPerView: 2 },
-              1024: { slidesPerView: 3 },
-            }}
-          >
+          {loadingFeatured && (
+            <p className="text-center text-gray-500 py-8">
+              Loading featured listings...
+            </p>
+          )}
 
-            {featuredListings.map((item) => (
-              <SwiperSlide key={item.id}>
-                <FeaturedCard listing={item} />
-              </SwiperSlide>
-            ))}
+          {!loadingFeatured && featuredListings.length === 0 && (
+            <p className="text-center text-gray-500 py-8">
+              No featured listings yet.
+            </p>
+          )}
 
-          </Swiper>
+          {!loadingFeatured && featuredListings.length > 0 && (
+
+            <Swiper
+              modules={[Navigation, Autoplay]}
+              slidesPerView={1}
+              spaceBetween={20}
+              navigation
+              autoplay={{ delay: 6000 }}
+              breakpoints={{
+                768: { slidesPerView: 2 },
+                1024: { slidesPerView: 3 },
+              }}
+            >
+
+              {featuredListings.map((item) => (
+                <SwiperSlide key={item.id}>
+                  <FeaturedCard listing={item} />
+                </SwiperSlide>
+              ))}
+
+            </Swiper>
+
+          )}
 
         </div>
 
@@ -299,7 +307,7 @@ export default function HomePage() {
       <section className="py-20 px-6 bg-gray-50">
 
         <h2 className="text-3xl font-bold text-center text-primary mb-12">
-          Why Choose Find A Home
+          Why Find A Home?
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
@@ -403,8 +411,8 @@ function FeaturedCard({ listing }: any) {
       <div className="relative h-52">
 
         <Image
-          src={listing.image}
-          alt={listing.title}
+          src={listing.images?.[0] || "/hero/hero5.jpg"}
+          alt={listing.title || "Property"}
           fill
           className="object-cover"
         />

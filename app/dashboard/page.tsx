@@ -11,7 +11,6 @@ import {
   query,
   where,
   getDocs,
-  orderBy,
   Timestamp,
   doc,
   deleteDoc,
@@ -90,7 +89,7 @@ export default function DashboardPage() {
         const q = query(
           collection(db, "listings"),
           where("createdBy", "==", user.uid),
-          orderBy("createdAt", "desc")
+          
         );
 
         const snapshot = await getDocs(q);

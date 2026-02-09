@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, ChangeEvent, FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Image from "next/image";
 import { X, Loader2 } from "lucide-react";
 
@@ -27,13 +27,10 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024;
    PAGE
 ================================ */
 
-export default function EditListingPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default function EditListingPage() {
   const router = useRouter();
-  const listingId = params.id;
+  const params = useParams();
+  const listingId = params?.id as string | undefined;
 
   /* ================= STATE ================= */
 
@@ -51,10 +48,7 @@ export default function EditListingPage({
   const [isFeatured, setIsFeatured] = useState(false);
   const [status, setStatus] = useState<"active" | "sold" | "pending">("active");
 
-  // Existing images from Firestore
   const [existingImages, setExistingImages] = useState<string[]>([]);
-  
-  // New files to upload
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [newPreviews, setNewPreviews] = useState<string[]>([]);
 
@@ -67,6 +61,8 @@ export default function EditListingPage({
   ================================ */
 
   useEffect(() => {
+    if (!listingId) return;
+
     const fetchListing = async () => {
       if (!auth.currentUser) {
         router.push("/login");
@@ -79,29 +75,29 @@ export default function EditListingPage({
 
         if (!docSnap.exists()) {
           setError("Listing not found");
+          setLoading(false);
           return;
         }
 
         const data = docSnap.data();
 
-        // Check ownership
         if (data.createdBy !== auth.currentUser.uid) {
           setError("Unauthorized");
+          setLoading(false);
           return;
         }
 
-        // Populate form
-        setTitle(data.title || "");
-        setDescription(data.description || "");
-        setPrice(data.price || "");
-        setLocation(data.location || "");
-        setBeds(data.beds || "");
-        setBaths(data.baths || "");
-        setSize(data.size || "");
-        setVirtualTour(data.virtualTour || "");
-        setIsFeatured(data.isFeatured || false);
-        setStatus(data.status || "active");
-        setExistingImages(data.images || []);
+        setTitle(data.title ?? "");
+        setDescription(data.description ?? "");
+        setPrice(data.price ?? "");
+        setLocation(data.location ?? "");
+        setBeds(data.beds ?? "");
+        setBaths(data.baths ?? "");
+        setSize(data.size ?? "");
+        setVirtualTour(data.virtualTour ?? "");
+        setIsFeatured(Boolean(data.isFeatured));
+        setStatus(data.status ?? "active");
+        setExistingImages(data.images ?? []);
 
         setLoading(false);
       } catch (err) {
@@ -115,35 +111,29 @@ export default function EditListingPage({
   }, [listingId, router]);
 
   /* ================================
-     REMOVE EXISTING IMAGE
+     IMAGE HANDLING
   ================================ */
 
   const removeExistingImage = (index: number) => {
-    setExistingImages((prev) => prev.filter((_, i) => i !== index));
+    setExistingImages(prev => prev.filter((_, i) => i !== index));
   };
-
-  /* ================================
-     HANDLE NEW FILES
-  ================================ */
 
   const handleNewFiles = (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
 
     const selected = Array.from(e.target.files);
-    const totalImages = existingImages.length + newFiles.length + selected.length;
+    const total = existingImages.length + newFiles.length + selected.length;
 
-    if (totalImages > MAX_IMAGES) {
+    if (total > MAX_IMAGES) {
       setError(`Maximum ${MAX_IMAGES} images allowed`);
       return;
     }
 
-    // Validate
     for (const file of selected) {
       if (!file.type.startsWith("image/")) {
         setError("Only image files allowed");
         return;
       }
-
       if (file.size > MAX_FILE_SIZE) {
         setError("Each image must be under 5MB");
         return;
@@ -151,24 +141,21 @@ export default function EditListingPage({
     }
 
     setError(null);
-    setNewFiles([...newFiles, ...selected]);
-
-    const previews = selected.map((file) => URL.createObjectURL(file));
-    setNewPreviews([...newPreviews, ...previews]);
+    setNewFiles(prev => [...prev, ...selected]);
+    setNewPreviews(prev => [
+      ...prev,
+      ...selected.map(file => URL.createObjectURL(file)),
+    ]);
   };
-
-  /* ================================
-     REMOVE NEW IMAGE
-  ================================ */
 
   const removeNewImage = (index: number) => {
     URL.revokeObjectURL(newPreviews[index]);
-    setNewFiles((prev) => prev.filter((_, i) => i !== index));
-    setNewPreviews((prev) => prev.filter((_, i) => i !== index));
+    setNewFiles(prev => prev.filter((_, i) => i !== index));
+    setNewPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   /* ================================
-     UPLOAD NEW IMAGES
+     CLOUDINARY UPLOAD
   ================================ */
 
   const uploadNewImages = async (): Promise<string[]> => {
@@ -190,10 +177,7 @@ export default function EditListingPage({
 
       const res = await fetch(
         `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
+        { method: "POST", body: formData }
       );
 
       if (!res.ok) throw new Error("Image upload failed");
@@ -212,10 +196,7 @@ export default function EditListingPage({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    if (!auth.currentUser) {
-      alert("Please login first");
-      return;
-    }
+    if (!auth.currentUser || !listingId) return;
 
     const totalImages = existingImages.length + newFiles.length;
     if (totalImages === 0) {
@@ -232,15 +213,10 @@ export default function EditListingPage({
       setSaving(true);
       setError(null);
 
-      // Upload new images
-      const newImageUrls = await uploadNewImages();
+      const uploaded = await uploadNewImages();
+      const images = [...existingImages, ...uploaded];
 
-      // Combine existing + new images
-      const allImages = [...existingImages, ...newImageUrls];
-
-      // Update Firestore
-      const docRef = doc(db, "listings", listingId);
-      await updateDoc(docRef, {
+      await updateDoc(doc(db, "listings", listingId), {
         title,
         description,
         price: Number(price),
@@ -248,7 +224,7 @@ export default function EditListingPage({
         beds: Number(beds),
         baths: Number(baths),
         size: Number(size),
-        images: allImages,
+        images,
         virtualTour: virtualTour || null,
         isFeatured,
         status,
@@ -264,7 +240,7 @@ export default function EditListingPage({
   };
 
   /* ================================
-     LOADING STATE
+     STATES
   ================================ */
 
   if (loading) {
@@ -275,16 +251,10 @@ export default function EditListingPage({
     );
   }
 
-  /* ================================
-     ERROR STATE
-  ================================ */
-
   if (error && !title) {
     return (
       <main className="min-h-screen p-8 bg-light">
-        <div className="bg-red-100 text-red-700 p-4 rounded-lg">
-          {error}
-        </div>
+        <div className="bg-red-100 text-red-700 p-4 rounded-lg">{error}</div>
       </main>
     );
   }
@@ -301,119 +271,79 @@ export default function EditListingPage({
         onSubmit={handleSubmit}
         className="max-w-2xl bg-white p-6 rounded-xl shadow space-y-5"
       >
-        {/* Error */}
         {error && (
           <div className="bg-red-100 text-red-700 px-4 py-2 rounded-lg">
             {error}
           </div>
         )}
 
-        {/* Title */}
         <Input label="Title" value={title} set={setTitle} />
-
-        {/* Description */}
         <Textarea label="Description" value={description} set={setDescription} />
-
-        {/* Price */}
         <NumberInput label="Price (Ksh)" value={price} set={setPrice} />
-
-        {/* Location */}
         <Input label="Location" value={location} set={setLocation} />
 
-        {/* Property Info */}
         <div className="grid grid-cols-3 gap-3">
           <NumberInput label="Beds" value={beds} set={setBeds} />
           <NumberInput label="Baths" value={baths} set={setBaths} />
           <NumberInput label="Size (sqm)" value={size} set={setSize} />
         </div>
 
-        {/* Images */}
         <div>
           <label className="block mb-2 font-semibold">
             Images ({existingImages.length + newFiles.length}/{MAX_IMAGES})
           </label>
 
-          {/* Existing Images */}
           {existingImages.length > 0 && (
             <div className="grid grid-cols-3 gap-3 mb-3">
               {existingImages.map((url, i) => (
-                <div
-                  key={`existing-${i}`}
-                  className="relative h-32 rounded-lg overflow-hidden group"
-                >
-                  <Image src={url} alt={`Image ${i + 1}`} fill className="object-cover" />
-                  
+                <div key={i} className="relative h-32 rounded-lg overflow-hidden group">
+                  <Image src={url} alt="" fill className="object-cover" />
                   <button
                     type="button"
                     onClick={() => removeExistingImage(i)}
-                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"
+                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100"
                   >
                     <X size={16} />
                   </button>
-
-                  {i === 0 && (
-                    <span className="absolute bottom-1 left-1 bg-primary text-black text-xs px-2 py-1 rounded">
-                      Main
-                    </span>
-                  )}
                 </div>
               ))}
             </div>
           )}
 
-          {/* New Images */}
           {newPreviews.length > 0 && (
             <div className="grid grid-cols-3 gap-3 mb-3">
-              {newPreviews.map((preview, i) => (
-                <div
-                  key={`new-${i}`}
-                  className="relative h-32 rounded-lg overflow-hidden group border-2 border-green-500"
-                >
-                  <Image src={preview} alt={`New ${i + 1}`} fill className="object-cover" />
-                  
+              {newPreviews.map((url, i) => (
+                <div key={i} className="relative h-32 rounded-lg overflow-hidden group border-2 border-green-500">
+                  <Image src={url} alt="" fill className="object-cover" />
                   <button
                     type="button"
                     onClick={() => removeNewImage(i)}
-                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"
+                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100"
                   >
                     <X size={16} />
                   </button>
-
-                  <span className="absolute bottom-1 left-1 bg-green-500 text-white text-xs px-2 py-1 rounded">
-                    New
-                  </span>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Upload More */}
           {existingImages.length + newFiles.length < MAX_IMAGES && (
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleNewFiles}
-              className="w-full"
-            />
+            <input type="file" multiple accept="image/*" onChange={handleNewFiles} />
           )}
         </div>
 
-        {/* Virtual Tour */}
         <Input
           label="Virtual Tour Link (Optional)"
           value={virtualTour}
           set={setVirtualTour}
           type="url"
-          placeholder="https://..."
         />
 
-        {/* Status */}
         <div>
           <label className="block mb-2 font-semibold">Status</label>
           <select
             value={status}
-            onChange={(e) => setStatus(e.target.value as any)}
+            onChange={e => setStatus(e.target.value as any)}
             className="w-full border rounded-lg px-3 py-2"
           >
             <option value="active">Active</option>
@@ -422,25 +352,19 @@ export default function EditListingPage({
           </select>
         </div>
 
-        {/* Featured Toggle */}
         <div className="flex items-center gap-3">
           <input
             type="checkbox"
-            id="featured"
             checked={isFeatured}
-            onChange={(e) => setIsFeatured(e.target.checked)}
-            className="w-4 h-4"
+            onChange={e => setIsFeatured(e.target.checked)}
           />
-          <label htmlFor="featured" className="font-semibold cursor-pointer">
-            Mark as Featured Listing
-          </label>
+          <label className="font-semibold">Mark as Featured Listing</label>
         </div>
 
-        {/* Submit */}
         <button
           type="submit"
           disabled={saving}
-          className="w-full bg-primary py-3 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
+          className="w-full bg-primary py-3 rounded-lg font-semibold disabled:opacity-50"
         >
           {saving ? "Saving..." : "Update Listing"}
         </button>
@@ -453,16 +377,14 @@ export default function EditListingPage({
    FORM COMPONENTS
 ================================ */
 
-function Input({ label, value, set, type = "text", placeholder = "" }: any) {
+function Input({ label, value, set, type = "text" }: any) {
   return (
     <div>
       <label className="block mb-1 font-semibold">{label}</label>
       <input
         type={type}
         value={value}
-        onChange={(e) => set(e.target.value)}
-        required={type !== "url"}
-        placeholder={placeholder}
+        onChange={e => set(e.target.value)}
         className="w-full border rounded-lg px-3 py-2"
       />
     </div>
@@ -475,7 +397,7 @@ function Textarea({ label, value, set }: any) {
       <label className="block mb-1 font-semibold">{label}</label>
       <textarea
         value={value}
-        onChange={(e) => set(e.target.value)}
+        onChange={e => set(e.target.value)}
         rows={4}
         className="w-full border rounded-lg px-3 py-2"
       />
@@ -491,8 +413,7 @@ function NumberInput({ label, value, set }: any) {
         type="number"
         value={value}
         min={0}
-        onChange={(e) => set(e.target.valueAsNumber)}
-        required
+        onChange={e => set(e.target.valueAsNumber)}
         className="w-full border rounded-lg px-3 py-2"
       />
     </div>

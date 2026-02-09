@@ -182,6 +182,8 @@ export default function AddListingPage() {
         isFeatured,
         status: "active",
         createdBy: auth.currentUser.uid,
+        agentEmail: auth.currentUser.email || null,
+        agentPhone: auth.currentUser.phoneNumber || null,
         createdAt: serverTimestamp(),
       });
 
