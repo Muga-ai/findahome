@@ -147,7 +147,7 @@ export default function HomePage() {
             <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
               Find Your Perfect Home.
               <br />
-              Anywhere in Bosnia. Working with Heller
+              Anywhere in Kenya.
             </h1>
 
             <p className="mt-4 text-lg text-gray-200 max-w-2xl">
@@ -325,7 +325,7 @@ export default function HomePage() {
 
       {/* ================= FOOTER ================= */}
       <footer className="bg-gray-900 text-gray-400 py-8 text-center text-sm">
-        © {new Date().getFullYear()} Find A Home. Built for Generations.
+        © {new Date().getFullYear()} Home of Homes.
       </footer>
 
     </main>
