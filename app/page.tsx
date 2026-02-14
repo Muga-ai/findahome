@@ -147,7 +147,7 @@ export default function HomePage() {
             <h1 className="text-4xl md:text-6xl font-extrabold leading-tight">
               Find Your Perfect Home.
               <br />
-              Anywhere in Kenya.
+              Anywhere in Bosnia. Working with Heller
             </h1>
 
             <p className="mt-4 text-lg text-gray-200 max-w-2xl">

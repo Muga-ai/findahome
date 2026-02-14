@@ -5,7 +5,7 @@ export async function getFeaturedListings() {
   try {
     const q = query(
       collection(db, "listings"),
-      where("featured", "==", true),
+      where("isFeatured", "==", true),
       limit(10)
     );
 
