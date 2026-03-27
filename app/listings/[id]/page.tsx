@@ -85,6 +85,14 @@ async function trackContactClick(
       createdAt: serverTimestamp(),
       read: false,
     });
+
+    // 🔥 Add analytics entry
+    await addDoc(collection(db, "analytics"), {
+      listingId,
+      agentId: ownerId,
+      type: type + "_click", // e.g., "whatsapp_click"
+      createdAt: serverTimestamp(),
+    });
   } catch (err) {
     // Non-blocking — tracking failures must never break UX
     console.warn("Tracking error:", err);
@@ -107,41 +115,49 @@ export default function ListingDetailsPage() {
   // Ensure we only track views once per page load
   const viewTracked = useRef(false);
 
-  /* =====================
-     FETCH + VIEW TRACKING
-  ===================== */
-  useEffect(() => {
-    if (!id) return;
+  /* ===================== 
+   FETCH + VIEW TRACKING
+===================== */
+useEffect(() => {
+  if (!id) return;
 
-    const fetchListing = async () => {
-      try {
-        const snap = await getDoc(doc(db, "listings", id as string));
-        if (snap.exists()) {
-          const data = snap.data() as Listing;
-          setListing(data);
+  const fetchListing = async () => {
+    try {
+      const snap = await getDoc(doc(db, "listings", id as string));
+      if (snap.exists()) {
+        const data = snap.data() as Listing;
+        setListing(data);
 
-          // Track view exactly once per page load
-          if (!viewTracked.current) {
-            viewTracked.current = true;
-            // Fire-and-forget — don't await
-            updateDoc(doc(db, "listings", id as string), {
-              views: increment(1),
-            }).catch(() => {}); // silently ignore errors
-          }
-        } else {
-          setListing(null);
+        // Track view exactly once per page load
+        if (!viewTracked.current) {
+          viewTracked.current = true;
+
+          // Increment views (fire-and-forget)
+          updateDoc(doc(db, "listings", id as string), {
+            views: increment(1),
+          }).catch(() => {}); // silently ignore errors
+
+          // 🔥 Add analytics entry
+          addDoc(collection(db, "analytics"), {
+            listingId: id,
+            agentId: data.createdBy ?? "",
+            type: "view",
+            createdAt: serverTimestamp(),
+          }).catch(() => {});
         }
-      } catch (err) {
-        console.error("Failed to load listing", err);
+      } else {
         setListing(null);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (err) {
+      console.error("Failed to load listing", err);
+      setListing(null);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchListing();
-  }, [id]);
-
+  fetchListing();
+}, [id]);
   /* =====================
      CONTACT HANDLERS
   ===================== */
