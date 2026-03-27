@@ -4,7 +4,6 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
 
   images: {
-    // Allow remote patterns
     remotePatterns: [
       {
         protocol: "https",
@@ -18,14 +17,24 @@ const nextConfig: NextConfig = {
       },
     ],
 
-  
+    // 🔥 ADD THIS (prevents random optimization failures in production)
+    formats: ["image/avif", "image/webp"],
+
+    // optional but safe
+    minimumCacheTTL: 60,
+
     qualities: [75, 85, 90],
   },
 
   experimental: {
     serverActions: {
       bodySizeLimit: "50mb",
-      allowedOrigins: ["https://findahome-kappa.vercel.app"],
+
+      // 🔥 IMPORTANT: allow both prod + local
+      allowedOrigins: [
+        "https://findahome-kappa.vercel.app",
+        "http://localhost:3000",
+      ],
     },
   },
 };
