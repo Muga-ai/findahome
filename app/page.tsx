@@ -493,7 +493,7 @@ export default function HomePage() {
               <li className="flex items-center gap-3">
                 <Phone size={16} className="text-amber-400 shrink-0" />
                 <a href="tel:+254700000000" className="hover:text-white transition">
-                  +254 700 000 000
+                  +254 711 378 910
                 </a>
               </li>
               <li className="flex items-center gap-3">
