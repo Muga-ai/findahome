@@ -3,7 +3,8 @@
 import { useState, ChangeEvent, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { X } from "lucide-react";
+import { X, Home as HomeIcon } from "lucide-react";
+import Link from "next/link";
 
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -22,6 +23,8 @@ interface CloudinaryResponse {
 
 const MAX_IMAGES = 6;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const SANS = { fontFamily: "'system-ui', sans-serif" };
+const SERIF = { fontFamily: "Georgia, serif" };
 
 /* ================================
    PAGE
@@ -34,6 +37,7 @@ export default function AddListingPage() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [listingType, setListingType] = useState<"sale" | "rent">("sale");
 
   const [price, setPrice] = useState<number | "">("");
   const [location, setLocation] = useState("");
@@ -52,7 +56,7 @@ export default function AddListingPage() {
   const [error, setError] = useState<string | null>(null);
 
   /* ================================
-     FILE HANDLER - FIXED FOR MULTIPLE IMAGES
+     FILE HANDLER
   ================================ */
 
   const handleFiles = (e: ChangeEvent<HTMLInputElement>) => {
@@ -61,19 +65,16 @@ export default function AddListingPage() {
     const selected = Array.from(e.target.files);
     const newFiles = [...files, ...selected];
 
-    // Check total count
     if (newFiles.length > MAX_IMAGES) {
       setError(`Maximum ${MAX_IMAGES} images allowed`);
       return;
     }
 
-    // Validate each file
     for (const file of selected) {
       if (!file.type.startsWith("image/")) {
         setError("Only image files allowed");
         return;
       }
-
       if (file.size > MAX_FILE_SIZE) {
         setError("Each image must be under 5MB");
         return;
@@ -82,25 +83,14 @@ export default function AddListingPage() {
 
     setError(null);
     setFiles(newFiles);
-
-    // Create previews
-    const newPreviews = selected.map(file => URL.createObjectURL(file));
+    const newPreviews = selected.map((file) => URL.createObjectURL(file));
     setPreviews([...previews, ...newPreviews]);
   };
 
-  /* ================================
-     REMOVE IMAGE
-  ================================ */
-
   const removeImage = (index: number) => {
-    const newFiles = files.filter((_, i) => i !== index);
-    const newPreviews = previews.filter((_, i) => i !== index);
-    
-    // Revoke object URL to prevent memory leaks
     URL.revokeObjectURL(previews[index]);
-    
-    setFiles(newFiles);
-    setPreviews(newPreviews);
+    setFiles(files.filter((_, i) => i !== index));
+    setPreviews(previews.filter((_, i) => i !== index));
   };
 
   /* ================================
@@ -111,9 +101,7 @@ export default function AddListingPage() {
     const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
     const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
-    if (!cloudName || !uploadPreset) {
-      throw new Error("Cloudinary not configured");
-    }
+    if (!cloudName || !uploadPreset) throw new Error("Cloudinary not configured");
 
     const urls: string[] = [];
 
@@ -124,15 +112,10 @@ export default function AddListingPage() {
 
       const res = await fetch(
         `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
+        { method: "POST", body: formData }
       );
 
-      if (!res.ok) {
-        throw new Error("Image upload failed");
-      }
+      if (!res.ok) throw new Error("Image upload failed");
 
       const data: CloudinaryResponse = await res.json();
       urls.push(data.secure_url);
@@ -172,6 +155,7 @@ export default function AddListingPage() {
       await addDoc(collection(db, "listings"), {
         title,
         description,
+        listingType,                      // ← NEW FIELD
         price: Number(price),
         location,
         beds: Number(beds),
@@ -201,160 +185,218 @@ export default function AddListingPage() {
   ================================ */
 
   return (
-    <main className="min-h-screen p-8 bg-light text-dark">
-      <h1 className="text-3xl font-bold mb-6">Add Property</h1>
+    <main className="min-h-screen bg-gray-50 text-gray-900" style={SANS}>
 
-      <form
-        onSubmit={handleSubmit}
-        className="max-w-2xl bg-white p-6 rounded-xl shadow space-y-5"
-      >
-        {/* Error */}
-        {error && (
-          <div className="bg-red-100 text-red-700 px-4 py-2 rounded-lg">
-            {error}
-          </div>
-        )}
+      {/* Navbar */}
+      <nav className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 font-bold text-xl" style={SERIF}>
+            <HomeIcon className="w-5 h-5 text-amber-500" />
+            <span>Find<span className="text-amber-500">A</span>Home</span>
+          </Link>
+          <Link
+            href="/dashboard/listings"
+            className="text-sm text-gray-500 hover:text-gray-900 transition"
+          >
+            ← My Listings
+          </Link>
+        </div>
+      </nav>
 
-        {/* Title */}
-        <Input label="Title" value={title} set={setTitle} />
-
-        {/* Description */}
-        <Textarea label="Description" value={description} set={setDescription} />
-
-        {/* Price */}
-        <NumberInput label="Price (Ksh)" value={price} set={setPrice} />
-
-        {/* Location */}
-        <Input label="Location" value={location} set={setLocation} />
-
-        {/* Property Info */}
-        <div className="grid grid-cols-3 gap-3">
-          <NumberInput label="Beds" value={beds} set={setBeds} />
-          <NumberInput label="Baths" value={baths} set={setBaths} />
-          <NumberInput label="Size (sqm)" value={size} set={setSize} />
+      <div className="max-w-3xl mx-auto px-6 py-10">
+        <div className="mb-8">
+          <p className="text-amber-600 text-xs font-semibold tracking-widest uppercase mb-1">
+            Dashboard
+          </p>
+          <h1 className="text-3xl font-bold text-gray-900" style={SERIF}>
+            Add Property
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">
+            Fill in the details below to publish your listing.
+          </p>
         </div>
 
-        {/* Images - ENHANCED */}
-        <div>
-          <label className="block mb-2 font-semibold">
-            Images ({files.length}/{MAX_IMAGES})
-          </label>
+        <form onSubmit={handleSubmit} className="space-y-6">
 
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleFiles}
-            disabled={files.length >= MAX_IMAGES}
-            className="w-full mb-3"
-          />
-
-          {previews.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              {previews.map((preview, i) => (
-                <div
-                  key={i}
-                  className="relative h-32 rounded-lg overflow-hidden group"
-                >
-                  <Image
-                    src={preview}
-                    alt={`Preview ${i + 1}`}
-                    fill
-                    className="object-cover"
-                  />
-                  
-                  {/* Remove button */}
-                  <button
-                    type="button"
-                    onClick={() => removeImage(i)}
-                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"
-                  >
-                    <X size={16} />
-                  </button>
-
-                  {/* First image badge */}
-                  {i === 0 && (
-                    <span className="absolute bottom-1 left-1 bg-primary text-black text-xs px-2 py-1 rounded">
-                      Main
-                    </span>
-                  )}
-                </div>
-              ))}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+              {error}
             </div>
           )}
-        </div>
 
-        {/* Virtual Tour */}
-        <Input
-          label="Virtual Tour Link (Optional)"
-          value={virtualTour}
-          set={setVirtualTour}
-          type="url"
-          placeholder="https://..."
-        />
+          {/* ===== LISTING TYPE ===== */}
+          <FormSection title="Listing Type">
+            <div className="flex gap-3">
+              {(["sale", "rent"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setListingType(t)}
+                  className={`flex-1 py-3 rounded-xl font-semibold text-sm border-2 transition capitalize ${
+                    listingType === t
+                      ? t === "sale"
+                        ? "bg-amber-400 border-amber-400 text-gray-900"
+                        : "bg-blue-600 border-blue-600 text-white"
+                      : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
+                  }`}
+                >
+                  {t === "sale" ? "For Sale" : "For Rent"}
+                </button>
+              ))}
+            </div>
+          </FormSection>
 
-        {/* Featured Toggle */}
-        <div className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            id="featured"
-            checked={isFeatured}
-            onChange={(e) => setIsFeatured(e.target.checked)}
-            className="w-4 h-4"
-          />
-          <label htmlFor="featured" className="font-semibold cursor-pointer">
-            Mark as Featured Listing
-          </label>
-        </div>
+          {/* ===== BASIC INFO ===== */}
+          <FormSection title="Basic Information">
+            <div className="space-y-4">
+              <Input label="Property Title" value={title} set={setTitle} placeholder="e.g. 3-Bed Apartment in Westlands" />
+              <Textarea label="Description" value={description} set={setDescription} placeholder="Describe the property, key features, nearby amenities..." />
+            </div>
+          </FormSection>
 
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-primary py-3 rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
-        >
-          {loading ? "Uploading..." : "Add Listing"}
-        </button>
-      </form>
+          {/* ===== PRICE + LOCATION ===== */}
+          <FormSection title="Price & Location">
+            <div className="space-y-4">
+              <NumberInput
+                label={listingType === "rent" ? "Monthly Rent (Ksh)" : "Asking Price (Ksh)"}
+                value={price}
+                set={setPrice}
+              />
+              <Input label="Location" value={location} set={setLocation} placeholder="e.g. Westlands, Nairobi" />
+            </div>
+          </FormSection>
+
+          {/* ===== PROPERTY DETAILS ===== */}
+          <FormSection title="Property Details">
+            <div className="grid grid-cols-3 gap-4">
+              <NumberInput label="Bedrooms" value={beds} set={setBeds} />
+              <NumberInput label="Bathrooms" value={baths} set={setBaths} />
+              <NumberInput label="Size (sqm)" value={size} set={setSize} />
+            </div>
+          </FormSection>
+
+          {/* ===== IMAGES ===== */}
+          <FormSection title={`Photos (${files.length}/${MAX_IMAGES})`}>
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleFiles}
+              disabled={files.length >= MAX_IMAGES}
+              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer"
+            />
+            <p className="text-xs text-gray-400 mt-1">First image will be used as the main photo. Max 5MB each.</p>
+
+            {previews.length > 0 && (
+              <div className="grid grid-cols-3 gap-3 mt-3">
+                {previews.map((preview, i) => (
+                  <div key={i} className="relative h-32 rounded-xl overflow-hidden group border border-gray-200">
+                    <Image src={preview} alt={`Preview ${i + 1}`} fill className="object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      className="absolute top-1.5 right-1.5 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition"
+                    >
+                      <X size={14} />
+                    </button>
+                    {i === 0 && (
+                      <span className="absolute bottom-1.5 left-1.5 bg-amber-400 text-gray-900 text-xs px-2 py-0.5 rounded-full font-semibold">
+                        Main
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </FormSection>
+
+          {/* ===== EXTRAS ===== */}
+          <FormSection title="Extras">
+            <div className="space-y-4">
+              <Input
+                label="Virtual Tour Link (Optional)"
+                value={virtualTour}
+                set={setVirtualTour}
+                type="url"
+                placeholder="https://..."
+              />
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isFeatured}
+                  onChange={(e) => setIsFeatured(e.target.checked)}
+                  className="w-4 h-4 accent-amber-500"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  Mark as Featured Listing
+                  <span className="ml-2 text-xs text-gray-400 font-normal">
+                    (Featured listings appear on the homepage)
+                  </span>
+                </span>
+              </label>
+            </div>
+          </FormSection>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-amber-400 text-gray-900 py-4 rounded-xl font-bold text-base hover:bg-amber-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Uploading & Publishing..." : "Publish Listing"}
+          </button>
+
+        </form>
+      </div>
     </main>
   );
 }
 
 /* ================================
-   FORM COMPONENTS
+   FORM SECTION WRAPPER
 ================================ */
 
-function Input({
-  label,
-  value,
-  set,
-  type = "text",
-  placeholder = "",
-}: any) {
+function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <h2 className="font-semibold text-gray-900 text-sm uppercase tracking-wide mb-4 text-gray-500">
+        {title}
+      </h2>
+      {children}
+    </div>
+  );
+}
+
+/* ================================
+   FORM INPUTS
+================================ */
+
+function Input({ label, value, set, type = "text", placeholder = "" }: any) {
   return (
     <div>
-      <label className="block mb-1 font-semibold">{label}</label>
+      <label className="block mb-1.5 text-sm font-medium text-gray-700">{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => set(e.target.value)}
         required={type !== "url"}
         placeholder={placeholder}
-        className="w-full border rounded-lg px-3 py-2"
+        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
       />
     </div>
   );
 }
 
-function Textarea({ label, value, set }: any) {
+function Textarea({ label, value, set, placeholder = "" }: any) {
   return (
     <div>
-      <label className="block mb-1 font-semibold">{label}</label>
+      <label className="block mb-1.5 text-sm font-medium text-gray-700">{label}</label>
       <textarea
         value={value}
         onChange={(e) => set(e.target.value)}
         rows={4}
-        className="w-full border rounded-lg px-3 py-2"
+        placeholder={placeholder}
+        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition resize-none"
       />
     </div>
   );
@@ -363,14 +405,14 @@ function Textarea({ label, value, set }: any) {
 function NumberInput({ label, value, set }: any) {
   return (
     <div>
-      <label className="block mb-1 font-semibold">{label}</label>
+      <label className="block mb-1.5 text-sm font-medium text-gray-700">{label}</label>
       <input
         type="number"
         value={value}
         min={0}
         onChange={(e) => set(e.target.valueAsNumber)}
         required
-        className="w-full border rounded-lg px-3 py-2"
+        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition"
       />
     </div>
   );
